@@ -34,11 +34,9 @@ const auth = {
         }
 
         // 2. Supabase Auth Logic (Only if static login failed)
-        if (dashboard.supabaseKey !== 'YOUR_SUPABASE_ANON_KEY') {
-            try {
                 const table = (role === 'admin' || role === 'staff') ? 'staff' : 'parents';
                 const query = `?email=eq.${email}&password=eq.${password}`;
-                const users = await dashboard.db(table, 'GET', null, query);
+                const users = await window.dashboard.db(table, 'GET', null, query);
 
                 if (users && users.length > 0) {
                     const user = users[0];
@@ -82,7 +80,7 @@ const auth = {
 
         // Populate and Init
         populateUserInfo(this.currentUser);
-        dashboard.init();
+        window.dashboard.init();
 
         // Ensure hash is set if we are on root or home
         if (!window.location.hash || window.location.hash === '#home' || window.location.hash === '#') {

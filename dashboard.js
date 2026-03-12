@@ -4,6 +4,10 @@ const dashboard = {
     supabaseUrl: (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_SUPABASE_URL : '',
     supabaseKey: (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_SUPABASE_KEY : '',
 
+    // Internal Shims for Module Compatibility
+    get auth() { return window.auth; },
+    get schoolDB() { return window.schoolDB; },
+
     // Data State
     isDbConnected: false,
     editingExamId: null,
@@ -149,7 +153,7 @@ const dashboard = {
 
         // Map Students
         if (studentsRaw) {
-            schoolDB.students = studentsRaw.map(s => ({
+            window.schoolDB.students = studentsRaw.map(s => ({
                 id: s.admission_no || s.id,
                 db_id: s.id,
                 name: (s.profiles && s.profiles.full_name) || 'Student',
@@ -176,7 +180,7 @@ const dashboard = {
                 staffProfiles.forEach(p => profileMap[p.id] = p);
             }
 
-            schoolDB.staff = staffRaw.map(s => {
+            window.schoolDB.staff = staffRaw.map(s => {
                 const profile = profileMap[s.id] || profileMap[s.employee_id] || {}; // Try matching on ID (likely)
                 return {
                     id: s.employee_id || s.id,
@@ -198,7 +202,7 @@ const dashboard = {
                 classesRaw.forEach(c => classMap[c.id] = c.name);
             }
 
-            schoolDB.exams = examsRaw.map(e => ({
+            window.schoolDB.exams = examsRaw.map(e => ({
                 id: e.id,
                 title: e.title,
                 class: classMap[e.class_id] || e.class || 'All', // Manual Map
@@ -209,7 +213,7 @@ const dashboard = {
 
         // Map Results
         if (resultsRaw) {
-            schoolDB.results = resultsRaw.map(r => ({
+            window.schoolDB.results = resultsRaw.map(r => ({
                 id: r.id,
                 student_id: r.student_id,
                 student_name: (r.students && r.students.profiles && r.students.profiles.full_name) || 'Student',
@@ -220,18 +224,18 @@ const dashboard = {
             }));
         }
 
-        if (fees) schoolDB.fees = fees;
-        if (attendance) schoolDB.attendance = attendance;
-        if (admissions) schoolDB.admissions = admissions;
+        if (fees) window.schoolDB.fees = fees;
+        if (attendance) window.schoolDB.attendance = attendance;
+        if (admissions) window.schoolDB.admissions = admissions;
         if (notices) {
-            schoolDB.notices = notices.map(n => ({
+            window.schoolDB.notices = notices.map(n => ({
                 ...n,
                 target: n.target_role || n.target || 'All',
                 date: n.created_at ? new Date(n.created_at).toLocaleDateString() : (n.date || 'Today')
             }));
         }
         if (quizzes) {
-            schoolDB.quizzes = quizzes.map(q => ({
+            window.schoolDB.quizzes = quizzes.map(q => ({
                 ...q,
                 class: q.class || '1st', // Fallback or map from DB field
                 division: q.division || 'All',
@@ -240,7 +244,7 @@ const dashboard = {
             }));
         }
         if (subjects) {
-            schoolDB.subjects = subjects.map(s => ({
+            window.schoolDB.subjects = subjects.map(s => ({
                 id: s.id,
                 name: s.name,
                 class: s.class || '1st',
@@ -249,7 +253,7 @@ const dashboard = {
         }
 
         if (homeworkRaw) {
-            schoolDB.homework = homeworkRaw.map(h => ({
+            window.schoolDB.homework = homeworkRaw.map(h => ({
                 id: h.id,
                 title: h.title,
                 description: h.description,
@@ -263,21 +267,21 @@ const dashboard = {
             }));
         }
 
-        if (leaves) schoolDB.leaves = leaves;
-        if (classesRaw) schoolDB.classes = classesRaw;
-        if (sectionsRaw) schoolDB.sections = sectionsRaw;
+        if (leaves) window.schoolDB.leaves = leaves;
+        if (classesRaw) window.schoolDB.classes = classesRaw;
+        if (sectionsRaw) window.schoolDB.sections = sectionsRaw;
 
         if (this.isDbConnected && !silent) {
             // DIAGNOSTICS
             console.log("Sync Complete. Loaded:", {
-                students: schoolDB.students.length,
-                staff: schoolDB.staff.length,
-                exams: schoolDB.exams.length,
-                homework: (schoolDB.homework || []).length,
-                sections: (schoolDB.sections || []).length,
-                sectionsSample: (schoolDB.sections && schoolDB.sections.length > 0) ? schoolDB.sections[0] : 'No Sections'
+                students: window.schoolDB.students.length,
+                staff: window.schoolDB.staff.length,
+                exams: window.schoolDB.exams.length,
+                homework: (window.schoolDB.homework || []).length,
+                sections: (window.schoolDB.sections || []).length,
+                sectionsSample: (window.schoolDB.sections && window.schoolDB.sections.length > 0) ? window.schoolDB.sections[0] : 'No Sections'
             });
-            showToast(`✅ Cloud Sync: ${schoolDB.students.length} Students, ${schoolDB.staff.length} Staff`, 'success');
+            showToast(`✅ Cloud Sync: ${window.schoolDB.students.length} Students, ${window.schoolDB.staff.length} Staff`, 'success');
         } else if (!this.isDbConnected && !silent) {
             showToast('Using Local Cache (Offline)', 'warning');
         }
@@ -686,7 +690,7 @@ const dashboard = {
     },
 
     renderSidebar: function () {
-        const role = auth.currentUser.role.toLowerCase();
+        const role = window.auth.currentUser.role.toLowerCase();
         const nav = document.getElementById('navLinks');
         nav.innerHTML = '';
         const currentHash = window.location.hash.substring(1) || 'overview';
@@ -736,7 +740,7 @@ const dashboard = {
         const content = document.getElementById('mainContent');
         const title = document.getElementById('pageTitle');
         const desc = document.getElementById('pageDesc');
-        const role = auth.currentUser.role;
+        const role = window.auth.currentUser.role;
 
         const metadata = {
             overview: { title: 'Dashboard Overview', desc: 'Quick summary of school activity' },
