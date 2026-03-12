@@ -275,8 +275,18 @@ const dashboard = {
         }
 
         if (leaves) window.schoolDB.leaves = leaves;
-        if (classesRaw) window.schoolDB.classes = classesRaw;
-        if (sectionsRaw) window.schoolDB.sections = sectionsRaw;
+        if (classesRaw) {
+            window.schoolDB.classes = classesRaw.map(c => ({
+                ...c,
+                name: this.normalizeClassName(c.name)
+            }));
+        }
+        if (sectionsRaw) {
+            window.schoolDB.sections = sectionsRaw.map(s => ({
+                ...s,
+                classes: s.classes ? { ...s.classes, name: this.normalizeClassName(s.classes.name) } : null
+            }));
+        }
 
         if (this.isDbConnected && !silent) {
             // DIAGNOSTICS
