@@ -92,33 +92,15 @@ const auth = {
 
     checkSession: function () {
         // We ALWAYS show the landing page first as per user request
-        // Even if logged in, we stay on the landing page
         if (document.getElementById('landingSection')) document.getElementById('landingSection').classList.remove('hidden');
         if (document.getElementById('appShell')) document.getElementById('appShell').classList.add('hidden');
         
-        // Update landing page UI based on login status
-        this.updateLandingUI();
-
         // ONLY show dashboard if there is a specific dashboard hash (e.g. from a deep link/refresh)
         const hash = window.location.hash.substring(1);
         const dashboardPages = ['overview', 'students', 'staff', 'fees', 'exams', 'attendance_all', 'ai_insights', 'communication', 'reports', 'settings', 'my_classes', 'mark_attendance', 'exam_marks', 'manage_quizzes', 'homework', 'staff_notices', 'parent_attendance', 'parent_homework', 'parent_fees', 'parent_results', 'parent_leave', 'parent_notices', 'subjects', 'leave_approvals'];
         
         if (this.currentUser && dashboardPages.includes(hash)) {
             this.showDashboard();
-        }
-    },
-
-    updateLandingUI: function() {
-        if (this.currentUser) {
-            const loginBtn = document.querySelector('button[onclick="router.showLogin()"]');
-            const signupBtn = document.querySelector('button[onclick="router.showSignup()"]');
-            if (loginBtn) {
-                loginBtn.innerHTML = 'Go to Dashboard';
-                loginBtn.setAttribute('onclick', 'window.auth.showDashboard()');
-                loginBtn.classList.add('bg-pucho-purple', 'text-white', 'rounded-full', 'px-6');
-                loginBtn.classList.remove('text-pucho-dark');
-            }
-            if (signupBtn) signupBtn.classList.add('hidden');
         }
     },
 
