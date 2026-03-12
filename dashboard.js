@@ -2363,10 +2363,13 @@ const dashboard = {
                 </tr>`;
             }
             if (type === 'fees') {
-                return `<tr class="hover:bg-gray-50/50 transition-all animate-fade-in">
-                    <td class="p-6 border-b border-gray-50 font-bold text-pucho-dark cursor-pointer text-indigo-600 hover:underline">${d.student_id}</td>
+                return `<tr class="hover:bg-gray-50/50 transition-all animate-fade-in shadow-sm">
+                    <td class="p-6 border-b border-gray-50">
+                        <div class="font-bold text-pucho-dark">${d.student_name || 'Student'}</div>
+                        <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">${d.student_id}</div>
+                    </td>
                     <td class="p-6 border-b border-gray-50 text-gray-500 font-medium">${d.type}</td>
-                    <td class="p-6 border-b border-gray-50 font-bold">₹${d.amount?.toLocaleString() || '0'}</td>
+                    <td class="p-6 border-b border-gray-50 font-bold text-pucho-dark">₹${d.amount?.toLocaleString() || '0'}</td>
                     <td class="p-6 border-b border-gray-50"><span class="px-3 py-1 ${d.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} rounded-full text-[10px] font-bold uppercase tracking-widest">${d.status}</span></td>
                 </tr>`;
             }
