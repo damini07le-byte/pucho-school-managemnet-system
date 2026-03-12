@@ -12,5 +12,9 @@
     "@playwright/test": "^1.57.0",
     "@types/node": "^25.0.10",
     "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.99.1",
+    "postgres": "^3.4.8"
   }
 }

@@ -247,9 +247,6 @@
             </div>
         </header>
 
-        <!-- Main Content -->
-        <div id="toastContainer" class="fixed top-24 right-6 z-[100] flex flex-col gap-4 pointer-events-none"></div>
-
         <main class="flex-1">
             <!-- Hero Section -->
             <section id="home" class="max-w-7xl mx-auto px-6 py-20 flex flex-col lg:flex-row items-center gap-12">
@@ -426,7 +423,7 @@
                                     👤</div>
                                 <div>
                                     <h4 class="font-bold text-sm">Mrs. Anjali Sharma</h4>
-                                    <p class="text-[10px] text-gray-400 uppercase font-bold">Parent of Grade 8 Student
+                                    <p class="text-[10px] text-gray-400 uppercase font-bold">Parent of 8th Student
                                     </p>
                                 </div>
                             </div>
@@ -441,7 +438,7 @@
                                     👨</div>
                                 <div>
                                     <h4 class="font-bold text-sm">Mr. David Miller</h4>
-                                    <p class="text-[10px] text-gray-400 uppercase font-bold">Parent of Grade 10 Student
+                                    <p class="text-[10px] text-gray-400 uppercase font-bold">Parent of 10th Student
                                     </p>
                                 </div>
                             </div>
@@ -456,7 +453,7 @@
                                     👩</div>
                                 <div>
                                     <h4 class="font-bold text-sm">Dr. Priya Iyer</h4>
-                                    <p class="text-[10px] text-gray-400 uppercase font-bold">Parent of Grade 3 Student
+                                    <p class="text-[10px] text-gray-400 uppercase font-bold">Parent of 3rd Student
                                     </p>
                                 </div>
                             </div>
@@ -581,8 +578,8 @@
                                         class="bg-gray-50 border border-black/5 p-4 rounded-2xl w-full outline-none focus:border-pucho-purple focus:ring-4 focus:ring-pucho-purple/5 transition-all text-pucho-dark appearance-none cursor-pointer">
                                         <option value="">Select Grade for Admission</option>
                                         <option>Nursery - KG</option>
-                                        <option>Grade 1 - 5</option>
-                                        <option>Grade 6 - 10</option>
+                                        <option>Class 1 - 5</option>
+                                        <option>Class 6 - 10</option>
                                     </select>
                                 </div>
                                 <button type="button" onclick="submitInquiry()"
@@ -1034,9 +1031,9 @@
                             <option value="">Global (All Classes)</option>
                             <option value="Nursery">Nursery</option>
                             <option value="KG">KG</option>
-                            <option value="Grade 1">Grade 1</option>
-                            <option value="Grade 2">Grade 2</option>
-                            <option value="Grade 10">Grade 10</option>
+                            <option value="1st">1st</option>
+                            <option value="2nd">2nd</option>
+                            <option value="10th">10th</option>
                         </select>
                     </div>
                     <div class="space-y-1">
@@ -1365,9 +1362,10 @@
             }, 4000);
         };
     </script>
-    <script src="public/data.js"></script>
-    <script src="public/auth.js"></script>
-    <script src="public/dashboard.js"></script>
+    <script type="module" src="public/data.js"></script>
+    <script type="module" src="public/auth.js"></script>
+    <script type="module" src="public/dashboard.js"></script>
+    <div id="toastContainer" class="fixed top-24 right-6 z-[100] flex flex-col gap-4 pointer-events-none"></div>
 </body>
 
 </html>
