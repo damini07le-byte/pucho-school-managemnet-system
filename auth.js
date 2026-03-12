@@ -91,9 +91,15 @@ const auth = {
     },
 
     checkSession: function () {
-        if (this.currentUser) {
-            // Always transition to dashboard if user is logged in
+        const hash = window.location.hash.substring(1);
+        const dashboardPages = ['overview', 'students', 'staff', 'fees', 'exams', 'attendance_all', 'ai_insights', 'communication', 'reports', 'settings', 'my_classes', 'mark_attendance', 'exam_marks', 'manage_quizzes', 'homework', 'staff_notices', 'parent_attendance', 'parent_homework', 'parent_fees', 'parent_results', 'parent_leave', 'parent_notices', 'subjects', 'leave_approvals'];
+        
+        if (this.currentUser && dashboardPages.includes(hash)) {
             this.showDashboard();
+        } else {
+            // Logged in but on home page (or not logged in) - stay on home page
+            if (document.getElementById('landingSection')) document.getElementById('landingSection').classList.remove('hidden');
+            if (document.getElementById('appShell')) document.getElementById('appShell').classList.add('hidden');
         }
     },
 
