@@ -12,53 +12,59 @@ const auth = {
     },
 
     login: async function (email, password, role) {
-        // 1. Check Static Credentials FIRST
-        // This allows admin/123 to work regardless of Supabase configuration
+        // 1. Check Static Credentials FIRST (for backward compatibility/demo)
         let user = this.credentials[email.toLowerCase().trim()];
-
-        // If not found by email, try to find by username/email matching in values
         if (!user) {
             user = Object.values(this.credentials).find(u => u.email === email && u.role === role);
         }
 
-        // Validate user exists and password matches AND role matches selected role
         if (user && user.password === String(password)) {
-            if (user.role !== role) {
-                console.warn(`Role mismatch: expected ${role}, user has ${user.role}`);
-                return false;
+            if (user.role === role) {
+                console.log("Static Login Success:", user);
+                this.currentUser = user;
+                localStorage.setItem('sms_user', JSON.stringify(user));
+                return true;
             }
-            console.log("Static Login Success:", user);
-            this.currentUser = user;
-            localStorage.setItem('sms_user', JSON.stringify(user));
-            return true;
         }
 
-        // 2. Supabase Auth Logic (Only if static login failed)
-        if (window.dashboard.supabaseKey && window.dashboard.supabaseKey !== 'YOUR_SUPABASE_ANON_KEY') {
-            try {
-                const table = (role === 'admin' || role === 'staff') ? 'staff' : 'parents';
-                const query = `?email=eq.${email}&password=eq.${password}`;
-                const users = await window.dashboard.db(table, 'GET', null, query);
+        // 2. REAL Supabase Auth Logic
+        const supabase = window.dashboard.supabase;
+        if (!supabase) {
+            window.dashboard.initSupabase();
+        }
 
-                if (users && users.length > 0) {
-                    const user = users[0];
-                    this.currentUser = {
-                        ...user,
-                        role: user.role || role,
-                        name: user.name || user.student_name || 'User'
-                    };
-                    localStorage.setItem('sms_user', JSON.stringify(this.currentUser));
-                    return true;
-                }
-            } catch (err) {
-                console.error("Supabase Auth Fail:", err);
+        if (window.dashboard.supabase) {
+            const { data, error } = await window.dashboard.supabase.auth.signInWithPassword({
+                email: email,
+                password: password,
+            });
+
+            if (data?.user) {
+                console.log("Supabase Auth Success:", data.user);
+                // Extract metadata (role, name) from user_metadata
+                const metadata = data.user.user_metadata || {};
+                this.currentUser = {
+                    id: data.user.id,
+                    email: data.user.email,
+                    role: metadata.role || role,
+                    name: metadata.full_name || metadata.name || data.user.email.split('@')[0]
+                };
+                localStorage.setItem('sms_user', JSON.stringify(this.currentUser));
+                return true;
+            }
+            if (error) {
+                console.error("Supabase Auth Error:", error.message);
+                throw error;
             }
         }
 
         return false;
     },
 
-    logout: function () {
+    logout: async function () {
+        if (window.dashboard.supabase) {
+            await window.dashboard.supabase.auth.signOut();
+        }
         this.currentUser = null;
         localStorage.removeItem('sms_user');
         window.location.reload();
@@ -109,37 +115,72 @@ const auth = {
         document.getElementById('forgotModal').classList.remove('hidden');
     },
 
-    handleForgotSubmit: function (e) {
+    handleForgotSubmit: async function (e) {
         e.preventDefault();
         const email = document.getElementById('forgotEmail').value;
         const submitBtn = document.querySelector('#forgotModal button[type="submit"]');
         const originalText = submitBtn.innerText;
 
-        // Check if user exists in our mock DB (credentials)
-        const user = Object.values(this.credentials).find(u => u.email.toLowerCase() === email.toLowerCase());
-
         submitBtn.disabled = true;
-        submitBtn.innerText = "Processing...";
+        submitBtn.innerText = "Sending Link...";
 
-        setTimeout(() => {
+        try {
+            const supabase = window.dashboard.supabase;
+            if (!supabase) window.dashboard.initSupabase();
+
+            if (window.dashboard.supabase) {
+                const { error } = await window.dashboard.supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: window.location.origin + '/#settings',
+                });
+
+                if (error) throw error;
+                
+                showToast(`Reset link successfully sent to ${email}`, 'success');
+                document.getElementById('forgotModal').classList.add('hidden');
+                document.getElementById('loginModal').classList.remove('hidden');
+            } else {
+                throw new Error("Auth service unavailable");
+            }
+        } catch (err) {
+            console.error("Forgot Pass Error:", err);
+            showToast(err.message, 'error');
+        } finally {
             submitBtn.disabled = false;
             submitBtn.innerText = originalText;
-            document.getElementById('forgotModal').classList.add('hidden');
-            document.getElementById('loginModal').classList.remove('hidden');
+        }
+    },
 
-            if (user) {
-                if (user.role === 'staff' || user.role === 'admin') {
-                    // Secure logic for staff/admin
-                    showToast(`Recovery instruction sent to secure server.\nPlease contact IT department if not received.`, 'info');
+    signUp: async function (name, email, password, role = 'parent') {
+        try {
+            const supabase = window.dashboard.supabase;
+            if (!supabase) window.dashboard.initSupabase();
+
+            if (window.dashboard.supabase) {
+                const { data, error } = await window.dashboard.supabase.auth.signUp({
+                    email: email,
+                    password: password,
+                    options: {
+                        data: {
+                            full_name: name,
+                            role: role
+                        }
+                    }
+                });
+
+                if (error) throw error;
+
+                if (data?.user?.identities?.length === 0) {
+                    showToast("User already exists. Please login.", 'warning');
                 } else {
-                    // Logic for Student/Parent
-                    showToast(`Password reset link sent to: ${email}`, 'success');
+                    showToast(`Success! Verification email sent to: ${email}`, 'success');
                 }
-            } else {
-                // Security best practice + Demo helpfulness
-                showToast(`If an account exists for ${email}, a reset link has been sent.`, 'info');
+                return true;
             }
-        }, 1500);
+        } catch (err) {
+            console.error("SignUp Error:", err);
+            showToast(err.message, 'error');
+            return false;
+        }
     }
 };
 
@@ -182,20 +223,28 @@ document.addEventListener('DOMContentLoaded', () => {
                         showToast("Please fill all fields.", 'error');
                         return;
                     }
-                    auth.credentials[email] = { email: email, password: pass, role: 'parent', name: name };
-                    showToast(`Account Created!\nWelcome, ${name}.\nPlease login with your new credentials.`, 'success');
-                    router.showLogin();
-                    emailInput.value = email;
+                    
+                    const success = await auth.signUp(name, email, pass, role);
+                    if (success) {
+                        document.getElementById('signupFields').classList.add('hidden');
+                        document.querySelector('#loginForm button[type="submit"]').innerText = "Sign In";
+                        document.getElementById('toggleSignup').innerText = "Create New Account";
+                    }
                     return;
                 }
 
-                if (await auth.login(email, pass, role)) {
-                    errorDiv.classList.add('hidden');
-                    auth.showDashboard();
-                } else {
-                    errorDiv.classList.remove('hidden');
-                    loginForm.classList.add('animate-pulse');
-                    setTimeout(() => loginForm.classList.remove('animate-pulse'), 500);
+                try {
+                    const success = await auth.login(email, pass, role);
+                    if (success) {
+                        errorDiv.classList.add('hidden');
+                        auth.showDashboard();
+                    } else {
+                        errorDiv.classList.remove('hidden');
+                        loginForm.classList.add('animate-shake');
+                        setTimeout(() => loginForm.classList.remove('animate-shake'), 500);
+                    }
+                } catch (err) {
+                    showToast(err.message, 'error');
                 }
             } catch (err) {
                 console.error("Login Error:", err);

@@ -1,8 +1,18 @@
 // MASTER DASHBOARD ENGINE
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
 const dashboard = {
     // Supabase Config (Direct DB Access)
     supabaseUrl: (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_SUPABASE_URL : '',
     supabaseKey: (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env.VITE_SUPABASE_KEY : '',
+    supabase: null,
+
+    initSupabase: function() {
+        if (this.supabaseUrl && this.supabaseKey && this.supabaseKey !== 'YOUR_SUPABASE_ANON_KEY') {
+            this.supabase = createClient(this.supabaseUrl, this.supabaseKey);
+            console.log("[Supabase] Real Client Initialized");
+        }
+    },
 
     // Internal Shims for Module Compatibility
     get auth() { return window.auth; },
@@ -15,35 +25,51 @@ const dashboard = {
 
     // Supabase Helper
     db: async function (table, method = 'GET', body = null, query = '') {
-        if (this.supabaseKey === 'YOUR_SUPABASE_ANON_KEY') {
-            console.warn(`[Supabase] Using Mock Data for ${table}. Please set your Anon Key.`);
+        if (!this.supabase) {
+            this.initSupabase();
+        }
+
+        if (!this.supabase) {
+            console.warn(`[Supabase] No client available for ${table}.`);
             return null;
         }
 
-        const url = `${this.supabaseUrl}/rest/v1/${table}${query}`;
-        const headers = {
-            'apikey': this.supabaseKey,
-            'Authorization': `Bearer ${this.supabaseKey}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation'
-        };
-
         try {
-            const response = await fetch(url, {
-                method: method,
-                headers: headers,
-                body: body ? JSON.stringify(body) : null
-            });
-            if (!response.ok) {
-                const errorBody = await response.text();
-                throw new Error(`DB Error: ${response.status} ${response.statusText} - ${errorBody}`);
+            let result;
+            if (method === 'GET') {
+                // Simplified query parser for existing usages
+                let q = this.supabase.from(table).select('*');
+                if (query.includes('eq.')) {
+                    const parts = query.replace('?', '').split('&');
+                    parts.forEach(p => {
+                        const [key, val] = p.split('=eq.');
+                        q = q.eq(key, val);
+                    });
+                }
+                const { data, error } = await q;
+                if (error) throw error;
+                result = data;
+            } else if (method === 'POST') {
+                const { data, error } = await this.supabase.from(table).insert(body).select();
+                if (error) throw error;
+                result = data;
+            } else if (method === 'PATCH' || method === 'PUT') {
+                // Expecting query to have id for updates
+                const id = query.replace('?id=eq.', '');
+                const { data, error } = await this.supabase.from(table).update(body).eq('id', id).select();
+                if (error) throw error;
+                result = data;
+            } else if (method === 'DELETE') {
+                const id = query.replace('?id=eq.', '');
+                const { data, error } = await this.supabase.from(table).delete().eq('id', id);
+                if (error) throw error;
+                result = { success: true };
             }
+
             this.isDbConnected = true;
-            return await response.json();
+            return result;
         } catch (err) {
-            console.error(`[Supabase Error] ${table}:`, err);
-            // Don't show toast for every error to avoid spam, just log complex errors
-            if (err.message.includes('400')) console.warn('Query Syntax Error for table:', table);
+            console.error(`[Supabase SDK Error] ${table}:`, err);
             return null;
         }
     },
