@@ -6575,4 +6575,5 @@ const dashboard = {
     }
 };
 
+// Export
 window.dashboard = dashboard;

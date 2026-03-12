@@ -207,4 +207,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// Export
 window.auth = auth;
