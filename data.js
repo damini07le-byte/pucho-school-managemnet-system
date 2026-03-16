@@ -111,7 +111,10 @@ const schoolDB = {
         { id: "ADM-001", student_name: "Rahul Verma", parent_name: "Suresh Verma", grade: "Grade 6", dob: "2013-08-15", phone: "9876540001", status: "Pending", applied_at: "2024-03-10T10:00:00Z", parent_email: "suresh.verma@example.com", docs: { birth_cert: "uploaded", address_proof: "missing" } },
         { id: "ADM-002", student_name: "Anaya Das", parent_name: "Vikram Das", grade: "Grade 7", dob: "2013-05-20", phone: "9600778899", status: "Approved", applied_at: "2026-01-10T11:30:00Z", parent_email: "vikram.das@example.com", docs: { birth_cert: "uploaded", address_proof: "uploaded" } }
     ],
-    notices: [], // Dynamic from Supabase/Webhook Flow
+    notices: [
+        { id: "NTC-001", title: "Annual Day 2026", content: "Annual celebrations on 20th Feb 2026.", date: "2026-01-15", target: "Global", priority: "High" },
+        { id: "NTC-002", title: "PTM Notice", content: "Parent-Teacher Meeting next Saturday.", date: "2026-01-20", target: "Parents", priority: "Medium" }
+    ],
     quizzes: [
         { id: "QZ-001", title: "Algebra Quiz-1", subject: "Mathematics", class: "Grade 10", division: "A", type: "Unit Test", date: "2026-01-08", totalMarks: 20 }
     ],

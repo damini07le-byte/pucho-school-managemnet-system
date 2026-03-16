@@ -31,7 +31,7 @@ async function seedNotice() {
         console.log("Triggering manual webhook simulation...");
         
         // Simulate webhook call to Pucho Studio to ensure payload is correct
-        const webhookUrl = 'https://studio.pucho.ai/api/v1/webhooks/yqARM2AlwdHyrtLw4Zi2k';
+        const webhookUrl = 'https://studio.pucho.ai/api/v1/webhooks/5CznwQbSkKQThvK62x5g9';
         const payload = {
             action: 'NOTICE_PUBLISHED',
             notice: {

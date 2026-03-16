@@ -6,61 +6,59 @@ const auth = {
     credentials: {
         admin: { email: "admin", password: "123", role: "admin", name: "Supreme Admin" },
         staff: { email: "staff", password: "123", role: "staff", name: "Teacher Rahul" },
-        parent: { email: "parent", password: "123", role: "parent", name: "Vikram Das" }
+        admin: { email: "admin", password: "123", role: "admin", name: "Supreme Admin" },
+        staff: { email: "staff", password: "123", role: "staff", name: "Teacher Rahul" },
+        parent: { id: "6652c3cf-4c65-41fc-8f7f-3a8fc5af9040", email: "parent", password: "123", role: "parent", name: "Vikram Das" }
     },
 
     login: async function (email, password, role) {
-        // 1. Check Static Credentials FIRST (for backward compatibility/demo)
+        // 1. Check Static Credentials FIRST
+        // This allows admin/123 to work regardless of Supabase configuration
         let user = this.credentials[email.toLowerCase().trim()];
+
+        // If not found by email, try to find by username/email matching in values
         if (!user) {
             user = Object.values(this.credentials).find(u => u.email === email && u.role === role);
         }
 
+        // Validate user exists and password matches AND role matches selected role
         if (user && user.password === String(password)) {
-            if (user.role === role) {
-                console.log("Static Login Success:", user);
-                this.currentUser = user;
-                localStorage.setItem('sms_user', JSON.stringify(user));
-                return true;
+            if (user.role !== role) {
+                console.warn(`Role mismatch: expected ${role}, user has ${user.role}`);
+                return false;
             }
+            console.log("Static Login Success:", user);
+            this.currentUser = user;
+            localStorage.setItem('sms_user', JSON.stringify(user));
+            return true;
         }
 
-        // 2. REAL Supabase Auth Logic
-        if (window.dashboard && window.dashboard.initSupabase) {
-            if (!window.dashboard.supabase) await window.dashboard.initSupabase();
-            
-            if (window.dashboard.supabase) {
-                const { data, error } = await window.dashboard.supabase.auth.signInWithPassword({
-                    email: email,
-                    password: password,
-                });
+        // 2. Supabase Auth Logic (Only if static login failed)
+        if (window.dashboard.supabaseKey && window.dashboard.supabaseKey !== 'YOUR_SUPABASE_ANON_KEY') {
+            try {
+                const table = (role === 'admin' || role === 'staff') ? 'staff' : 'parents';
+                const query = `?email=eq.${email}&password=eq.${password}`;
+                const users = await window.dashboard.db(table, 'GET', null, query);
 
-                if (data?.user) {
-                    console.log("Supabase Auth Success:", data.user);
-                    const metadata = data.user.user_metadata || {};
+                if (users && users.length > 0) {
+                    const user = users[0];
                     this.currentUser = {
-                        id: data.user.id,
-                        email: data.user.email,
-                        role: metadata.role || role,
-                        name: metadata.full_name || metadata.name || data.user.email.split('@')[0]
+                        ...user,
+                        role: user.role || role,
+                        name: user.name || user.student_name || 'User'
                     };
                     localStorage.setItem('sms_user', JSON.stringify(this.currentUser));
                     return true;
                 }
-                if (error) {
-                    console.error("Supabase Auth Error:", error.message);
-                    throw error;
-                }
+            } catch (err) {
+                console.error("Supabase Auth Fail:", err);
             }
         }
 
         return false;
     },
 
-    logout: async function () {
-        if (window.dashboard && window.dashboard.supabase) {
-            await window.dashboard.supabase.auth.signOut();
-        }
+    logout: function () {
         this.currentUser = null;
         localStorage.removeItem('sms_user');
         window.location.reload();
@@ -70,52 +68,36 @@ const auth = {
         if (!this.currentUser) return;
 
         // Hide Landing & Modal
-        const landing = document.getElementById('landingSection');
-        const loginModal = document.getElementById('loginModal');
-        const appShell = document.getElementById('appShell');
-
-        if (landing) landing.classList.add('hidden');
-        if (loginModal) {
-            loginModal.classList.add('hidden');
-            loginModal.classList.remove('flex');
+        if (document.getElementById('landingSection')) document.getElementById('landingSection').classList.add('hidden');
+        if (document.getElementById('loginModal')) {
+            document.getElementById('loginModal').classList.add('hidden');
+            document.getElementById('loginModal').classList.remove('flex');
         }
 
         // Show App Shell
+        const appShell = document.getElementById('appShell');
         if (appShell) appShell.classList.remove('hidden');
+
         document.body.classList.remove('overflow-hidden');
 
-        // Populate User Info
+        // Populate and Init
         populateUserInfo(this.currentUser);
+        window.dashboard.init();
 
-        // Robust Initialization: Wait for dashboard object (Standard script sync issue)
-        let retryCount = 0;
-        const maxRetries = 50; // 5 seconds total
-        const initChecker = setInterval(() => {
-            if (window.dashboard && typeof window.dashboard.init === 'function') {
-                clearInterval(initChecker);
-                window.dashboard.init();
-                // If no specific hash, go to overview
-                if (!window.location.hash || window.location.hash === '#') {
-                    window.location.hash = '#overview';
-                }
-                console.log("[Auth] Dashboard init successful.");
-            } else {
-                retryCount++;
-                if (retryCount % 10 === 0) console.log(`[Auth] Still waiting for dashboard... (${retryCount}/${maxRetries})`);
-                if (retryCount >= maxRetries) {
-                    clearInterval(initChecker);
-                    console.error("[Auth] Dashboard failed to load.");
-                    if (typeof showToast === 'function') showToast("Dashboard failed to initialize.", "error");
-                }
-            }
-        }, 100);
+        // Always force overview on initial dashboard show after login
+        window.location.hash = '#overview';
+        // If already on overview, manually trigger loadPage since hashchange won't fire
+        if (window.location.hash === '#overview') {
+            window.dashboard.loadPage('overview');
+        }
     },
 
     checkSession: function () {
-        // We ALWAYS show the landing page first
+        // We ALWAYS show the landing page first as per user request
         if (document.getElementById('landingSection')) document.getElementById('landingSection').classList.remove('hidden');
         if (document.getElementById('appShell')) document.getElementById('appShell').classList.add('hidden');
         
+        // ONLY show dashboard if there is a specific dashboard hash (e.g. from a deep link/refresh)
         const hash = window.location.hash.substring(1);
         const dashboardPages = ['overview', 'students', 'staff', 'fees', 'exams', 'attendance_all', 'ai_insights', 'communication', 'reports', 'settings', 'my_classes', 'mark_attendance', 'exam_marks', 'manage_quizzes', 'homework', 'staff_notices', 'parent_attendance', 'parent_homework', 'parent_fees', 'parent_results', 'parent_leave', 'parent_notices', 'subjects', 'leave_approvals'];
         
@@ -129,95 +111,37 @@ const auth = {
         document.getElementById('forgotModal').classList.remove('hidden');
     },
 
-    handleForgotSubmit: async function (e) {
+    handleForgotSubmit: function (e) {
         e.preventDefault();
         const email = document.getElementById('forgotEmail').value;
         const submitBtn = document.querySelector('#forgotModal button[type="submit"]');
         const originalText = submitBtn.innerText;
 
+        // Check if user exists in our mock DB (credentials)
+        const user = Object.values(this.credentials).find(u => u.email.toLowerCase() === email.toLowerCase());
+
         submitBtn.disabled = true;
-        submitBtn.innerText = "Sending Link...";
+        submitBtn.innerText = "Processing...";
 
-        try {
-            if (window.dashboard && !window.dashboard.supabase) await window.dashboard.initSupabase();
-
-            if (window.dashboard && window.dashboard.supabase) {
-                const { error } = await window.dashboard.supabase.auth.resetPasswordForEmail(email, {
-                    redirectTo: window.location.origin + '/#settings',
-                });
-
-                if (error) throw error;
-                
-                showToast(`Reset link successfully sent to ${email}`, 'success');
-                document.getElementById('forgotModal').classList.add('hidden');
-                document.getElementById('loginModal').classList.remove('hidden');
-            } else {
-                throw new Error("Auth service unavailable");
-            }
-        } catch (err) {
-            console.error("Forgot Pass Error:", err);
-            showToast(err.message, 'error');
-        } finally {
+        setTimeout(() => {
             submitBtn.disabled = false;
             submitBtn.innerText = originalText;
-        }
-    },
+            document.getElementById('forgotModal').classList.add('hidden');
+            document.getElementById('loginModal').classList.remove('hidden');
 
-    signUp: async function (name, email, password, role = 'parent') {
-        try {
-            if (window.dashboard && !window.dashboard.supabase) await window.dashboard.initSupabase();
-            const client = window.dashboard ? window.dashboard.supabase : null;
-
-            if (!client) {
-                showToast("Connection to server failed. Please try again.", 'error');
-                return false;
-            }
-
-            const { data, error } = await client.auth.signUp({
-                email: email,
-                password: password,
-                options: {
-                    data: {
-                        full_name: name,
-                        role: role
-                    }
-                }
-            });
-
-            if (error) {
-                console.error("Supabase Auth Error:", error);
-                throw error;
-            }
-
-            if (data?.user) {
-                const { error: profileError } = await client
-                    .from('profiles')
-                    .insert([
-                        {
-                            id: data.user.id,
-                            full_name: name,
-                            role: role,
-                            phone: ''
-                        }
-                    ]);
-
-                if (profileError) {
-                    console.error("Profile Creation Failed:", profileError);
-                }
-
-                if (data.identities?.length === 0) {
-                    showToast("User already exists. Please login.", 'warning');
+            if (user) {
+                if (user.role === 'staff' || user.role === 'admin') {
+                    // Secure logic for staff/admin
+                    showToast(`Recovery instruction sent to secure server.\nPlease contact IT department if not received.`, 'info');
                 } else {
-                    showToast(`Success! Verification email sent to: ${email}`, 'success');
+                    // Logic for Student/Parent
+                    showToast(`Password reset link sent to: ${email}`, 'success');
                 }
-                return true;
+            } else {
+                // Security best practice + Demo helpfulness
+                showToast(`If an account exists for ${email}, a reset link has been sent.`, 'info');
             }
-            return false;
-        } catch (err) {
-            console.error("SignUp Execution Error:", err);
-            showToast(err.message || "Registration failed", 'error');
-            return false;
-        }
+        }, 1500);
     }
 };
 
@@ -226,7 +150,7 @@ function populateUserInfo(user) {
     if (document.getElementById('userName')) document.getElementById('userName').innerText = user.name;
     if (document.getElementById('userRole')) document.getElementById('userRole').innerText = user.role;
     const avatar = document.getElementById('userAvatar');
-    if (avatar) avatar.innerText = (user.name || "U").charAt(0);
+    if (avatar) avatar.innerText = user.name.charAt(0);
 }
 
 // Initial session check
@@ -237,6 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error("Session Check Failed:", err);
     }
 
+    // Login Form Listener
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
@@ -259,34 +184,29 @@ document.addEventListener('DOMContentLoaded', () => {
                         showToast("Please fill all fields.", 'error');
                         return;
                     }
-                    
-                    const success = await auth.signUp(name, email, pass, role);
-                    if (success) {
-                        router.showLogin();
-                        showToast(`Registration successful! Please sign in.`, 'success');
-                    }
+                    auth.credentials[email] = { email: email, password: pass, role: 'parent', name: name };
+                    showToast(`Account Created!\nWelcome, ${name}.\nPlease login with your new credentials.`, 'success');
+                    router.showLogin();
+                    emailInput.value = email;
                     return;
                 }
 
-                try {
-                    const success = await auth.login(email, pass, role);
-                    if (success) {
-                        if (errorDiv) errorDiv.classList.add('hidden');
-                        auth.showDashboard();
-                    } else {
-                        if (errorDiv) errorDiv.classList.remove('hidden');
-                        loginForm.classList.add('animate-shake');
-                        setTimeout(() => loginForm.classList.remove('animate-shake'), 500);
-                    }
-                } catch (err) {
-                    showToast(err.message, 'error');
+                if (await auth.login(email, pass, role)) {
+                    errorDiv.classList.add('hidden');
+                    auth.showDashboard();
+                } else {
+                    errorDiv.classList.remove('hidden');
+                    loginForm.classList.add('animate-pulse');
+                    setTimeout(() => loginForm.classList.remove('animate-pulse'), 500);
                 }
             } catch (err) {
                 console.error("Login Error:", err);
+                alert("Login Error: " + err.message); // Visible feedback for user/debug
             }
         });
     }
 
+    // Toggle Sidebar for mobile
     const menuToggle = document.getElementById('menuToggle');
     if (menuToggle) {
         menuToggle.addEventListener('click', () => {
@@ -296,4 +216,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// Export
 window.auth = auth;
