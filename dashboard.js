@@ -7200,6 +7200,126 @@ const dashboard = {
         
         if (btn) btn.disabled = false;
         showToast('Board updated with latest Cloud data', 'success');
+    },
+
+    // --- Chatbot Logic ---
+    toggleChatbot: function () {
+        const window = document.getElementById('chatbot-window');
+        const toggle = document.getElementById('chatbot-toggle');
+        if (!window) return;
+
+        const isHidden = window.classList.contains('hidden');
+        if (isHidden) {
+            window.classList.remove('hidden');
+            toggle.classList.add('bg-pucho-purple');
+            document.getElementById('chatbot-input')?.focus();
+        } else {
+            window.classList.add('hidden');
+            toggle.classList.remove('bg-pucho-purple');
+        }
+    },
+
+    chatShortcut: function (text) {
+        const input = document.getElementById('chatbot-input');
+        if (input) {
+            input.value = text;
+            this.sendMessageToBot();
+        }
+    },
+
+    sendMessageToBot: async function () {
+        const input = document.getElementById('chatbot-input');
+        const query = input?.value?.trim();
+        if (!query) return;
+
+        // 1. Show User Message
+        this.appendChatMessage('user', query);
+        input.value = '';
+
+        // 2. Show Typing Indicator
+        this.showTypingIndicator();
+
+        // 3. Prepare Payload
+        const user = window.auth?.currentUser || {};
+        const payload = {
+            query: query,
+            timestamp: new Date().toISOString(),
+            user_context: {
+                id: user.id || 'anonymous',
+                name: user.name || user.full_name || 'Guardian',
+                role: user.role || 'parent',
+                email: user.email || 'N/A',
+                class: user.class || 'N/A'
+            },
+            source: 'school_dashboard_v2'
+        };
+
+        try {
+            // 4. Call Pucho Studio Automation Flow
+            const webhookUrl = 'https://studio.pucho.ai/api/v1/webhooks/tig6F4L4CtP5kvpC0IxWn';
+            const response = await fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            this.removeTypingIndicator();
+
+            // 5. Render Response
+            // Expecting data.response or data.text or data.message
+            const botMessage = data.response || data.text || data.message || "I've processed your request. Is there anything else you need?";
+            this.appendChatMessage('bot', botMessage);
+
+        } catch (err) {
+            console.error('Chatbot Error:', err);
+            this.removeTypingIndicator();
+            this.appendChatMessage('bot', "I'm having trouble connecting to my brain right now. Please try again or check your internet connection.");
+        }
+    },
+
+    appendChatMessage: function (sender, text) {
+        const container = document.getElementById('chatbot-messages');
+        if (!container) return;
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `flex flex-col gap-1.5 ${sender === 'user' ? 'items-end ml-auto max-w-[85%]' : 'max-w-[85%]'} animate-fade-in`;
+        
+        const bubbleClass = sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-pucho';
+        const labelText = sender === 'user' ? 'YOU' : 'AI ASSISTANT';
+
+        messageDiv.innerHTML = `
+            <div class="${bubbleClass} p-4 text-sm font-bold leading-relaxed shadow-sm">
+                ${text.replace(/\n/g, '<br>')}
+            </div>
+            <span class="text-[9px] text-gray-400 font-bold ${sender === 'user' ? 'mr-1' : 'ml-1'} uppercase">${labelText} • JUST NOW</span>
+        `;
+
+        container.appendChild(messageDiv);
+        container.scrollTop = container.scrollHeight;
+    },
+
+    showTypingIndicator: function () {
+        const container = document.getElementById('chatbot-messages');
+        if (!container) return;
+
+        const typingDiv = document.createElement('div');
+        typingDiv.id = 'chatbot-typing';
+        typingDiv.className = 'flex flex-col gap-1.5 max-w-[85%] animate-fade-in';
+        typingDiv.innerHTML = `
+            <div class="chat-bubble-pucho p-4 flex items-center gap-1 shadow-sm opacity-80">
+                <div class="typing-dot" style="animation-delay: 0s"></div>
+                <div class="typing-dot" style="animation-delay: 0.2s"></div>
+                <div class="typing-dot" style="animation-delay: 0.4s"></div>
+            </div>
+        `;
+        container.appendChild(typingDiv);
+        container.scrollTop = container.scrollHeight;
+    },
+
+    removeTypingIndicator: function () {
+        const el = document.getElementById('chatbot-typing');
+        if (el) el.remove();
     }
 };
 
