@@ -9,6 +9,10 @@ const dashboard = {
         console.log("[Dashboard] Supabase Key:", this.supabaseKey ? "SET (Length: " + this.supabaseKey.length + ")" : "MISSING");
         if (!this.supabaseUrl || !this.supabaseKey) {
             console.error("[Dashboard] SUPABASE CONFIG MISSING! Check .env file and ensure Vite is loading it.");
+            // Notify user on Netlify if config is missing
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                setTimeout(() => showToast('⚠️ Netlify Configuration Missing: Please add VITE_SUPABASE_URL and VITE_SUPABASE_KEY to your Netlify environment variables and re-deploy.', 'error'), 3000);
+            }
         }
     },
 
